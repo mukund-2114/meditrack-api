@@ -4,7 +4,7 @@ const auth = require('../middleware/auth');
 const { getAllPatients, getPatientById, addPatient } = require('../controllers/patientController');
 
 // Get all patients
-router.get('/', auth, getAllPatients);
+router.get('/', getAllPatients);
 
 // Get patient by ID
 router.get('/:id', auth, getPatientById);

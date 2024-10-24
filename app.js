@@ -5,6 +5,10 @@ const userRoutes = require('./routes/userRoute')
 const patientRoutes = require('./routes/patientRoute')
 const testRoutes = require('./routes/testRoute')
 
+const cors = require('cors');
+app.use(cors());
+
+
 // Connect to MongoDB
 connectDB();
 
