@@ -32,7 +32,7 @@ const addPatient = async (req, res) => {
       dob,
       gender,
       address,
-      contactNumber
+      contactNumber,
     });
     await newPatient.save();
     res.json(newPatient);
@@ -42,4 +42,33 @@ const addPatient = async (req, res) => {
   }
 };
 
-module.exports = {getAllPatients, addPatient,getPatientById}
+// Update a patient by ID
+const updatePatient = async (req, res) => {
+  const { name, dob, gender, address, contactNumber } = req.body;
+  try {
+    const patient = await Patient.findByIdAndUpdate(
+      req.params.id,
+      { name, dob, gender, address, contactNumber },
+      { new: true } // return the updated document
+    );
+    if (!patient) return res.status(404).json({ message: 'Patient not found' });
+    res.json(patient);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+// Delete a patient by ID
+const deletePatient = async (req, res) => {
+  try {
+    const patient = await Patient.findByIdAndDelete(req.params.id);
+    if (!patient) return res.status(404).json({ message: 'Patient not found' });
+    res.json({ message: 'Patient deleted successfully' });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+module.exports = { getAllPatients, getPatientById, addPatient, updatePatient, deletePatient };

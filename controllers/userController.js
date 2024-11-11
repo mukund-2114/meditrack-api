@@ -33,7 +33,6 @@ const registerUser = async (req, res) => {
 //login routes
 const loginUser = async(req,res)=>{
     const {username, password} = req.body
-
     try{
         //check if user exists
         const user = await User.findOne({username})
@@ -55,4 +54,17 @@ const loginUser = async(req,res)=>{
     }
 }
 
-module.exports = {registerUser, loginUser}
+const getLoggedinUser =async (req, res) => {
+    const {token} = req.body
+    // console.log("token", token)
+    // if (!token) return res.status(401).json({ message: 'Access denied. No token provided.' });    
+    console.log(token)
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    //   req.user = decoded;
+    const data = await User.findOne({_id:decoded.id})
+    console.log("decoded",data)
+      res.json(data);
+    
+}
+
+module.exports = {registerUser, loginUser,getLoggedinUser}

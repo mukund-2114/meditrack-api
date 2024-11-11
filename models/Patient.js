@@ -6,7 +6,7 @@ const PatientSchema = new mongoose.Schema({
     gender: { type: String, enum: ['Male', 'Female', 'Other'], required: true },
     address: { type: String },
     contactNumber: { type: String },
-    status: { type: String, enum: ['Active', 'Inactive'], default: 'Active' }
+    status: { type: String, enum: ['Critical', 'Stable'], default: 'Stable' }
 })
 
 module.exports = mongoose.model('Patient', PatientSchema);
