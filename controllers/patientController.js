@@ -1,6 +1,7 @@
 const Patient = require('../models/Patient');
+const Test = require('../models/Test');
 
-// Get all patients
+
 const getAllPatients = async (req, res) => {
   try {
     const patients = await Patient.find();
@@ -11,7 +12,8 @@ const getAllPatients = async (req, res) => {
   }
 };
 
-// Get a patient by ID
+
+ 
 const getPatientById = async (req, res) => {
   try {
     const patient = await Patient.findById(req.params.id);
@@ -23,17 +25,11 @@ const getPatientById = async (req, res) => {
   }
 };
 
-// Add a new patient
+
 const addPatient = async (req, res) => {
-  const { name, dob, gender, address, contactNumber } = req.body;
+  const { name, dob, gender, address, contactNumber, userId } = req.body;
   try {
-    const newPatient = new Patient({
-      name,
-      dob,
-      gender,
-      address,
-      contactNumber,
-    });
+    const newPatient = new Patient({ name, dob, gender, address, contactNumber, userId });
     await newPatient.save();
     res.json(newPatient);
   } catch (err) {
@@ -42,15 +38,16 @@ const addPatient = async (req, res) => {
   }
 };
 
-// Update a patient by ID
+
 const updatePatient = async (req, res) => {
   const { name, dob, gender, address, contactNumber } = req.body;
   try {
     const patient = await Patient.findByIdAndUpdate(
       req.params.id,
       { name, dob, gender, address, contactNumber },
-      { new: true } // return the updated document
+      { new: true }
     );
+    
     if (!patient) return res.status(404).json({ message: 'Patient not found' });
     res.json(patient);
   } catch (err) {
@@ -59,10 +56,12 @@ const updatePatient = async (req, res) => {
   }
 };
 
-// Delete a patient by ID
+
 const deletePatient = async (req, res) => {
   try {
-    const patient = await Patient.findByIdAndDelete(req.params.id);
+    const patientId = req.params.id;
+    await Test.deleteMany({ patientId });
+    const patient = await Patient.findByIdAndDelete(patientId);
     if (!patient) return res.status(404).json({ message: 'Patient not found' });
     res.json({ message: 'Patient deleted successfully' });
   } catch (err) {
@@ -71,4 +70,39 @@ const deletePatient = async (req, res) => {
   }
 };
 
-module.exports = { getAllPatients, getPatientById, addPatient, updatePatient, deletePatient };
+const updatePatientStatus = async (req, res) => {
+    const { id } = req.params; // Get patient ID from the URL parameters
+    const { status } = req.body; // Expecting new status in the body
+    console.log("Received ID:", id, "Received Status:", status); // Log the received values
+    try {
+        const patient = await Patient.findByIdAndUpdate(
+            id,
+            { status },
+            { new: true }
+        );
+        if (!patient) return res.status(404).json({ message: 'Patient not found' });
+        res.json(patient);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
+const getCriticalPatients = async (req, res) => {
+  console.log("hello")
+    const { userId } = req.query; // Get userId from query parameters
+    try {
+        // Find patients that are critical and belong to the specified user
+        console.log("checking userId",userId)
+        const criticalPatients = await Patient.find({
+            userId: userId,
+            status: 'Critical' // Correctly filtering by status
+        });
+        res.json(criticalPatients);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
+module.exports = { getAllPatients, getPatientById, addPatient, updatePatient, deletePatient, updatePatientStatus, getCriticalPatients };

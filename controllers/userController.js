@@ -31,28 +31,23 @@ const registerUser = async (req, res) => {
 
 
 //login routes
-const loginUser = async(req,res)=>{
-    const {username, password} = req.body
-    try{
-        //check if user exists
-        const user = await User.findOne({username})
-        if(!user) return res.status(400).json({message: 'User not found'})
+const loginUser = async (req, res) => {
+    const { username, password } = req.body;
+    try {
+        const user = await User.findOne({ username });
+        if (!user) return res.status(400).json({ message: 'Invalid credentials' });
 
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch) return res.status(400).json({ message: 'Invalid credentials' });
 
-        //check if password is correct
-        const isMatch = await bcrypt.compare(password, user.password)
-        if(!isMatch) return res.status(400).json({message: 'Invalid password'})
-
-
-        //generate a token
-        const token = jwt.sign({id: user.id}, process.env.JWT_SECRET, {expiresIn: '1h'})
-        res.json({token})
+        // Generate a token
+        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+        res.json({ token, userId: user._id }); // Return user ID along with the token
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server error');
     }
-    catch(err){
-        console.error(err.message)
-        res.status(500).send('Server error')
-    }
-}
+};
 
 const getLoggedinUser =async (req, res) => {
     const {token} = req.body

@@ -1,113 +1,107 @@
 const mongoose = require('mongoose');
-const Patient = require('../models/Patient'); // Import Patient model
-const Test = require('../models/Test'); // Import Test model
+const Patient = require('../models/Patient');
+const Test = require('../models/Test');
 
-// Get all tests for a specific patient
+
 const getTestsByPatientId = async (req, res) => {
+  const { patientId } = req.params;
   try {
-    // Find tests by the patientId passed as a parameter
-    const tests = await Test.find({ patient: req.params.patientId }).populate('patient');
-    
-    if (!tests || tests.length === 0) {
-      return res.status(400).json({ message: 'No tests found for this patient' });
-    }
-
-    // Return the list of tests for the patient
+    const tests = await Test.find({ patientId });
     res.json(tests);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error' });
-  }
-};
-
-// Add a new test for a specific patient
-const addTest = async (req, res) => {
-  const { dataType, reading } = req.body;
-  
-  // Convert reading to a number
-  const readingValue = parseFloat(reading);
-  
-  // Determine if the reading is in a critical range
-  let criticalFlag = false;
-  if (
-    (dataType === 'Blood Pressure' && (readingValue < 50 || readingValue > 160)) ||
-    (dataType === 'Respiratory Rate' && (readingValue < 12 || readingValue > 25)) ||
-    (dataType === 'Blood Oxygen Level' && readingValue < 90) ||
-    (dataType === 'Heartbeat Rate' && (readingValue < 40 || readingValue > 120))
-  ) {
-    criticalFlag = true;
-  }
-
-  try {
-    // Create a new Test document for the patient
-    const newTest = new Test({
-      dataType,
-      reading,
-      patient: req.params.patientId,
-      criticalFlag,
-    });
-    await newTest.save();
-
-    // Find the patient and check if they have any critical tests
-    const patient = await Patient.findById(req.params.patientId);
-    const criticalTest = await Test.findOne({
-      patient: req.params.patientId,
-      criticalFlag: true,
-    });
-
-    // Update patient status based on critical tests
-    if (criticalTest) {
-      patient.status = 'Critical';
-    } else {
-      patient.status = 'Stable';
-    }
-
-    // Save updated patient status
-    await patient.save();
-
-    // Return the newly added test as a response
-    res.json(newTest);
   } catch (err) {
     console.error(err.message);
     res.status(500).json({ message: 'Server error' });
   }
 };
 
-// Get all critical tests for patients
-// Route to get all critical patients
-const getAllCriticalPatients = async(req, res) => {
+const addTest = async (req, res) => {
   try {
-    const criticalPatients = await Patient.find({ status: 'Critical' })
-    res.status(200).json(criticalPatients);
-  } catch (error) {
-    console.error('Error fetching critical patients:', error);
-    res.status(500).json({ message: 'Error fetching critical patients' });
+    const { patientId, dataType, reading, testDate } = req.body;
+
+    // Log the received data
+    console.log("Received data:", { patientId, dataType, reading, testDate });
+
+    // Validate input
+    if (!patientId || !dataType || reading === undefined || !testDate) {
+      return res.status(400).json({ message: 'Please provide all required fields.' });
+    }
+
+    // Convert reading to a number
+    const readingValue = parseFloat(reading);
+    console.log("Parsed reading value:", readingValue);
+
+    // Fetch the patient to get the userId
+    const patient = await Patient.findById(patientId);
+    if (!patient) {
+      return res.status(404).json({ message: 'Patient not found.' });
+    }
+
+    // Determine if the reading is in a critical range
+    let criticalFlag = false;
+    if (
+      (dataType === 'Blood Pressure' && (readingValue < 50 || readingValue > 160)) ||
+      (dataType === 'Respiratory Rate' && (readingValue < 12 || readingValue > 25)) ||
+      (dataType === 'Blood Oxygen Level' && readingValue < 90) ||
+      (dataType === 'Heartbeat Rate' && (readingValue < 40 || readingValue > 120))
+    ) {
+      criticalFlag = true;
+    }
+
+    // Create a new test instance
+    const newTest = new Test({
+      patientId,
+      userId: patient.userId, // Include the userId from the patient
+      dataType,
+      reading: readingValue,
+      testDate,
+      criticalFlag,
+    });
+
+    // Save the test to the database
+    const savedTest = await newTest.save();
+    res.status(201).json(savedTest);
+  } catch (err) {
+    console.error("Error in addTest:", err.message);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
-// Edit an existing test
-const editTest = async (req, res) => {
-  const { dataType, reading } = req.body;
-  
-  // Convert reading to a number
-  const readingValue = parseFloat(reading);
-
-  // Determine if the updated reading is critical
-  let criticalFlag = false;
-  if (
-    (dataType === 'Blood Pressure' && (readingValue < 50 || readingValue > 160)) ||
-    (dataType === 'Respiratory Rate' && (readingValue < 12 || readingValue > 25)) ||
-    (dataType === 'Blood Oxygen Level' && readingValue < 90) ||
-    (dataType === 'Heartbeat Rate' && (readingValue < 40 || readingValue > 120))
-  ) {
-    criticalFlag = true;
-  }
-
+const getAllCriticalPatients = async (req, res) => {
   try {
-    // Find the test by ID and update it
+    // Find all tests that indicate critical conditions
+    const criticalTests = await Test.find({
+      $or: [
+        { dataType: 'Blood Pressure', reading: { $gte: 180 } }, // High blood pressure
+        { dataType: 'Blood Pressure', reading: { $lte: 90 } },  // Low blood pressure
+        { dataType: 'Respiratory Rate', reading: { $gte: 30 } }, // High respiratory rate
+        { dataType: 'Respiratory Rate', reading: { $lte: 8 } },  // Low respiratory rate
+        { dataType: 'Blood Oxygen Level', reading: { $lte: 92 } }, // Low blood oxygen
+        { dataType: 'Heartbeat Rate', reading: { $gte: 130 } },  // High heart rate
+        { dataType: 'Heartbeat Rate', reading: { $lte: 40 } }    // Low heart rate
+      ]
+    }).populate('patientId');
+
+    // Get unique patients from critical tests
+    const criticalPatients = [...new Set(criticalTests.map(test => test.patientId))];
+
+    // Populate user information for critical patients
+    const patientsWithUsers = await Patient.find({ _id: { $in: criticalPatients } }).populate('userId');
+
+    res.json(patientsWithUsers);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+const editTest = async (req, res) => {
+  try {
+    const { testId } = req.params;
+    const { dataType, reading, testDate } = req.body;
+
     const updatedTest = await Test.findByIdAndUpdate(
-      req.params.testId, 
-      { dataType, reading, criticalFlag }, 
+      testId,
+      { dataType, reading, testDate },
       { new: true }
     );
 
@@ -115,26 +109,6 @@ const editTest = async (req, res) => {
       return res.status(404).json({ message: 'Test not found' });
     }
 
-    // Find the patient and check if they have any critical tests
-    const patient = await Patient.findById(updatedTest.patient);
-
-    // Check for any critical tests for the patient
-    const criticalTest = await Test.findOne({
-      patient: patient._id,
-      criticalFlag: true,
-    });
-
-    // Update the patient's status based on critical tests
-    if (criticalTest) {
-      patient.status = 'Critical';
-    } else {
-      patient.status = 'Stable';
-    }
-
-    // Save the updated patient status
-    await patient.save();
-
-    // Respond with the updated test data
     res.json(updatedTest);
   } catch (err) {
     console.error(err.message);
@@ -142,10 +116,32 @@ const editTest = async (req, res) => {
   }
 };
 
-module.exports = {
-  getTestsByPatientId,
-  addTest,
-  getAllCriticalPatients,
-
-  editTest,
+const getTestById = async (req, res) => {
+  const { testId } = req.params;
+  try {
+    const test = await Test.findById(testId);
+    if (!test) {
+      return res.status(404).json({ message: 'Test not found' });
+    }
+    res.json(test);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ message: 'Server error' });
+  }
 };
+
+const deleteTest = async (req, res) => {
+  const { testId } = req.params;
+  try {
+    const deletedTest = await Test.findByIdAndDelete(testId);
+    if (!deletedTest) {
+      return res.status(404).json({ message: 'Test not found' });
+    }
+    res.json({ message: 'Test deleted successfully' });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
+module.exports = { getTestsByPatientId, addTest, getAllCriticalPatients, editTest, getTestById, deleteTest };
