@@ -23,7 +23,7 @@ const swaggerOptions = {
       },
       servers: [
         {
-          url:`https://meditrack-api-azure-dqc0gdaefebzgrgw.canadacentral-01.azurewebsites.net:${PORT}`,
+          url: 'https://meditrack-api-azure-dqc0gdaefebzgrgw.canadacentral-01.azurewebsites.net',
           description: 'Development server'
         },
       ],
