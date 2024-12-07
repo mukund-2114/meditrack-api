@@ -41,7 +41,7 @@ const loginUser = async (req, res) => {
         if (!isMatch) return res.status(400).json({ message: 'Invalid credentials' });
 
         // Generate a token
-        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+        const token = jwt.sign({ id: user._id }, 'itisasecret', { expiresIn: '1h' });
         res.json({ token, userId: user._id }); // Return user ID along with the token
     } catch (err) {
         console.error(err.message);
@@ -54,7 +54,7 @@ const getLoggedinUser =async (req, res) => {
     // console.log("token", token)
     // if (!token) return res.status(401).json({ message: 'Access denied. No token provided.' });    
     console.log(token)
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const decoded = jwt.verify(token, 'itisasecret');
     //   req.user = decoded;
     const data = await User.findOne({_id:decoded.id})
     console.log("decoded",data)
